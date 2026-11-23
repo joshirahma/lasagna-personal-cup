@@ -1,6 +1,6 @@
 import React from 'react'
-import { Sparkles, Clock, CheckCircle2, ChevronDown, Heart, Flame } from 'lucide-react'
-import { BRAND_NAME, PRICE_PER_CUP, CAMPUS_NAME } from '../../lib/constants'
+import { Sparkles, CheckCircle2, ChevronDown, Flame, Utensils } from 'lucide-react'
+import { BRAND_NAME, PRICE_PER_CUP, CAMPUS_NAME, PRODUCT_IMAGE_URL } from '../../lib/constants'
 import { formatRupiah } from '../../lib/formatters'
 
 export default function Hero({ onOrderClick }) {
@@ -43,56 +43,40 @@ export default function Hero({ onOrderClick }) {
           Hangat, Gurih Daging Sapi & Keju Lumer Praktis Masuk Kelas
         </p>
 
-        {/* Appetite-Appealing Product Visual Showcase */}
+        {/* Real Product Photo Showcase */}
         <div className="relative my-5 mx-auto max-w-xs group">
           <div className="absolute -inset-1 bg-gradient-to-r from-tomato-500 via-cheese-400 to-crust-600 rounded-3xl blur-md opacity-40 group-hover:opacity-60 transition duration-500"></div>
           
-          <div className="relative bg-white rounded-2xl p-4 shadow-xl border border-warmbg-300 overflow-hidden">
-            {/* Visual Illustrated Cup */}
-            <div className="relative h-48 bg-gradient-to-b from-cheese-100 via-warmbg-100 to-amber-50 rounded-xl flex items-center justify-center p-3 overflow-hidden">
-              {/* Steamy Effect */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-3 opacity-70">
-                <span className="w-1.5 h-6 bg-white/70 rounded-full blur-[1px] animate-pulse"></span>
-                <span className="w-1.5 h-8 bg-white/80 rounded-full blur-[1px] animate-pulse delay-100"></span>
-                <span className="w-1.5 h-5 bg-white/70 rounded-full blur-[1px] animate-pulse delay-200"></span>
-              </div>
-
-              {/* Lasagna Cup Illustration */}
-              <div className="relative w-40 text-center animate-float">
-                {/* Cheese & Meat Topping */}
-                <div className="w-36 h-12 mx-auto rounded-t-2xl bg-gradient-to-b from-amber-400 via-cheese-400 to-tomato-500 shadow-inner relative flex items-center justify-center border-b-2 border-crust-800/30">
-                  <div className="absolute inset-0 bg-[radial-gradient(#78350f_1px,transparent_1px)] [background-size:8px_8px] opacity-40"></div>
-                  <span className="text-[10px] font-extrabold text-crust-950 bg-white/90 px-2 py-0.5 rounded-full shadow-sm tracking-wider uppercase">
-                    Golden Cheese Crust
-                  </span>
-                </div>
-
-                {/* Aluminium Cup Body */}
-                <div className="w-32 h-20 mx-auto bg-gradient-to-b from-slate-200 via-slate-100 to-slate-300 rounded-b-2xl border-x-2 border-b-2 border-slate-300 shadow-lg flex flex-col justify-between p-2 relative">
-                  {/* Embossed Ribs */}
-                  <div className="border-t border-slate-300/80 my-1"></div>
-                  <div className="border-t border-slate-300/80 my-1"></div>
-                  
-                  {/* Brand Badge on Cup */}
-                  <div className="bg-tomato-600 text-white rounded-md py-1 px-1.5 shadow-sm text-center">
-                    <p className="text-[10px] font-black uppercase tracking-wider leading-none">Lasagna Cup</p>
-                    <p className="text-[8px] text-cheese-200 font-semibold leading-none mt-0.5">Politeknik STMI</p>
-                  </div>
-                  <div className="text-[8px] text-slate-400 font-bold">ALU-FOIL 150ml</div>
-                </div>
-              </div>
+          <div className="relative bg-white rounded-2xl p-3 shadow-xl border border-warmbg-300 overflow-hidden">
+            {/* Foto Produk Asli */}
+            <div className="relative h-56 rounded-xl overflow-hidden bg-slate-100 shadow-inner">
+              <img
+                src={PRODUCT_IMAGE_URL}
+                alt="Lasagna Personal Cup Panggang"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                onError={(e) => {
+                  e.target.onerror = null
+                  e.target.src = '/lasagna-wide.jpg'
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-crust-950/70 via-transparent to-black/10 pointer-events-none"></div>
 
               {/* Price Tag Floating */}
-              <div className="absolute top-3 right-3 bg-tomato-600 text-white rounded-xl px-2.5 py-1.5 shadow-lg border-2 border-white transform rotate-3 hover:rotate-0 transition-transform">
+              <div className="absolute top-2.5 right-2.5 bg-tomato-600/95 backdrop-blur-md text-white rounded-xl px-2.5 py-1.5 shadow-lg border-2 border-white transform rotate-2 hover:rotate-0 transition-transform">
                 <span className="block text-[10px] uppercase font-bold text-cheese-200 leading-none">Hanya</span>
                 <span className="text-base font-extrabold tracking-tight leading-tight">{formatRupiah(PRICE_PER_CUP)}</span>
                 <span className="block text-[9px] text-white/90 leading-none">/ cup</span>
               </div>
 
-              {/* Feature Pill Left */}
-              <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1 shadow-md border border-warmbg-300 text-left">
-                <p className="text-[9px] text-slate-500 font-medium leading-none">Daging Sapi Giling</p>
-                <p className="text-[11px] text-crust-900 font-extrabold leading-tight">100% Halal</p>
+              {/* Bottom Badge Over Image */}
+              <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-left">
+                <div className="bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/20 text-white">
+                  <p className="text-[9px] text-cheese-300 font-bold uppercase tracking-wider leading-none">Porsi Personal 150ml</p>
+                  <p className="text-[11px] font-extrabold leading-tight">Daging Sapi & Keju Leleh</p>
+                </div>
+                <div className="bg-emerald-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                  100% Halal
+                </div>
               </div>
             </div>
 
@@ -131,7 +115,7 @@ export default function Hero({ onOrderClick }) {
           </div>
           <div className="flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>COD tepat waktu di kampus</span>
+            <span>Ambil di Lapangan STMI</span>
           </div>
         </div>
 

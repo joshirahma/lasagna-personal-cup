@@ -179,7 +179,7 @@ export default function App() {
 
   // Active production cups for badge
   const activeCupsCount = orders
-    .filter((o) => ['Pending', 'Diproses', 'Siap COD'].includes(o.status))
+    .filter((o) => ['Menunggu Verifikasi', 'Pending', 'Diproses', 'Siap COD', 'Siap Diambil'].includes(o.status))
     .reduce((sum, o) => sum + (o.quantity || 0), 0)
 
   return (

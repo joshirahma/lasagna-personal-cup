@@ -18,7 +18,10 @@ export default function OrderTrackerModal({ orders, onClose }) {
 
   const getStatusBadge = (status) => {
     const s = ORDER_STATUSES.find((item) => item.id === status)
-    return s ? s.color : 'bg-slate-100 text-slate-700'
+    if (s) return s.color
+    if (status === 'Pending') return 'bg-amber-100 text-amber-800 border-amber-300'
+    if (status === 'Siap COD') return 'bg-purple-100 text-purple-800 border-purple-300'
+    return 'bg-slate-100 text-slate-700'
   }
 
   return (

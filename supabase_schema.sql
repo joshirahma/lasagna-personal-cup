@@ -22,10 +22,14 @@ CREATE TABLE IF NOT EXISTS public.orders (
     cod_location VARCHAR(100) NOT NULL,  -- Selasar Gedung A, Kantin Kampus, Lobi Utama, Area Parkir / Gerbang Utama
     cod_time VARCHAR(100) NOT NULL,      -- Istirahat Pagi (09.30 - 10.00), Istirahat Siang (12.00 - 13.00), Sore Pulang Kuliah (15.30 - 16.30)
     notes TEXT DEFAULT '',
-    status VARCHAR(30) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Diproses', 'Siap COD', 'Selesai', 'Dibatalkan')),
+    payment_proof TEXT DEFAULT '',
+    status VARCHAR(40) NOT NULL DEFAULT 'Menunggu Verifikasi' CHECK (status IN ('Menunggu Verifikasi', 'Pending', 'Diproses', 'Siap Diambil', 'Siap COD', 'Selesai', 'Dibatalkan')),
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- Migration aman jika tabel orders sudah dibuat sebelumnya
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_proof TEXT DEFAULT '';
 
 -- Index untuk filter query cepat
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
@@ -140,7 +144,7 @@ ON CONFLICT (code) DO UPDATE SET
 
 -- 7. SEED DATA AWAL: 3 PESANAN SIMULASI (TOTAL 15 CUP)
 -- Untuk demonstrasi awal langsung menghitung omzet Rp 180.000 & kalkulasi BOM aktif
-INSERT INTO public.orders (order_number, customer_name, customer_role, whatsapp_number, quantity, unit_price, total_price, cod_location, cod_time, notes, status, created_at)
+INSERT INTO public.orders (order_number, customer_name, customer_role, whatsapp_number, quantity, unit_price, total_price, cod_location, cod_time, notes, payment_proof, status, created_at)
 VALUES
     (
         'LPC-1001',
@@ -150,9 +154,10 @@ VALUES
         5,
         12000.00,
         60000.00,
-        'Kantin Kampus',
-        'Istirahat Siang (12.00 - 13.00)',
+        'Lapangan Politeknik STMI Jakarta',
+        'Dihubungi via WhatsApp saat siap diambil',
         'Extra saus bechamel kalau bisa ya kak, terima kasih!',
+        '/qris.jpg',
         'Diproses',
         NOW() - INTERVAL '3 hours'
     ),
@@ -164,10 +169,11 @@ VALUES
         6,
         12000.00,
         72000.00,
-        'Lobi Utama',
-        'Istirahat Siang (12.00 - 13.00)',
-        'Untuk rapat kecil dosen prodi di ruang rapat.',
-        'Pending',
+        'Lapangan Politeknik STMI Jakarta',
+        'Dihubungi via WhatsApp saat siap diambil',
+        'Untuk rapat dosen prodi di ruang rapat.',
+        '/qris.jpg',
+        'Menunggu Verifikasi',
         NOW() - INTERVAL '1 hour 30 minutes'
     ),
     (
@@ -178,10 +184,11 @@ VALUES
         4,
         12000.00,
         48000.00,
-        'Selasar Gedung A',
-        'Istirahat Pagi (09.30 - 10.00)',
-        'Langsung antar ke meja BAAK kalau sudah sampai di selasar ya.',
-        'Siap COD',
+        'Lapangan Politeknik STMI Jakarta',
+        'Dihubungi via WhatsApp saat siap diambil',
+        'Siap ambil di lapangan saat jam istirahat ya kak.',
+        '/qris.jpg',
+        'Siap Diambil',
         NOW() - INTERVAL '45 minutes'
     )
 ON CONFLICT (order_number) DO NOTHING;

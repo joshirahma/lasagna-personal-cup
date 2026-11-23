@@ -11,9 +11,20 @@ import {
   Minus,
   Sparkles,
   ArrowRight,
-  Loader2
+  Loader2,
+  QrCode,
+  UploadCloud,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Image as ImageIcon
 } from 'lucide-react'
-import { PRICE_PER_CUP, COD_LOCATIONS, COD_TIMES } from '../../lib/constants'
+import {
+  PRICE_PER_CUP,
+  DEFAULT_PICKUP_LOCATION,
+  DEFAULT_PICKUP_TIME_INFO,
+  QRIS_IMAGE_URL
+} from '../../lib/constants'
 import { formatRupiah } from '../../lib/formatters'
 
 export default function OrderForm({ onOrderSubmitted }) {
@@ -22,10 +33,12 @@ export default function OrderForm({ onOrderSubmitted }) {
     customer_role: '',
     whatsapp_number: '',
     quantity: 1,
-    cod_location: COD_LOCATIONS[0],
-    cod_time: COD_TIMES[1], // Default istirahat siang
     notes: '',
   })
+
+  // State untuk bukti transfer QRIS
+  const [paymentProof, setPaymentProof] = useState('')
+  const [paymentProofFileName, setPaymentProofFileName] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,12 +47,12 @@ export default function OrderForm({ onOrderSubmitted }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
     if (error) setError('')
   }
 
   const handleQuantityChange = (delta) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const next = Math.max(1, prev.quantity + delta)
       return { ...prev, quantity: next }
     })
@@ -48,16 +61,50 @@ export default function OrderForm({ onOrderSubmitted }) {
   const handleQuantityInput = (e) => {
     const val = parseInt(e.target.value, 10)
     if (!isNaN(val) && val >= 1) {
-      setFormData(prev => ({ ...prev, quantity: val }))
+      setFormData((prev) => ({ ...prev, quantity: val }))
     } else if (e.target.value === '') {
-      setFormData(prev => ({ ...prev, quantity: 1 }))
+      setFormData((prev) => ({ ...prev, quantity: 1 }))
     }
+  }
+
+  // Handle upload bukti bayar (convert to base64 Data URL)
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validasi tipe file
+    if (!file.type.startsWith('image/')) {
+      setError('File bukti pembayaran harus berupa gambar (JPG/PNG/JPEG)')
+      return
+    }
+
+    // Validasi ukuran file (maksimal 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Ukuran gambar maksimal 5MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setPaymentProof(reader.result)
+      setPaymentProofFileName(file.name)
+      if (error) setError('')
+    }
+    reader.onerror = () => {
+      setError('Gagal membaca file gambar. Silakan coba lagi.')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveProof = () => {
+    setPaymentProof('')
+    setPaymentProofFileName('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // Validation
+    // Validasi input
     if (!formData.customer_name.trim()) {
       setError('Mohon masukkan nama lengkap pemesan')
       return
@@ -75,10 +122,28 @@ export default function OrderForm({ onOrderSubmitted }) {
       return
     }
 
+    // Validasi wajib upload bukti bayar QRIS
+    if (!paymentProof) {
+      setError('Wajib mengunggah bukti transfer pembayaran QRIS sebelum menyelesaikan pesanan!')
+      // Scroll ke bagian bukti bayar
+      const el = document.getElementById('qris-section')
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+      return
+    }
+
     try {
       setLoading(true)
       setError('')
-      await onOrderSubmitted(formData)
+
+      const orderPayload = {
+        ...formData,
+        cod_location: DEFAULT_PICKUP_LOCATION,
+        cod_time: DEFAULT_PICKUP_TIME_INFO,
+        payment_proof: paymentProof,
+        status: 'Menunggu Verifikasi',
+      }
+
+      await onOrderSubmitted(orderPayload)
     } catch (err) {
       setError(err.message || 'Gagal menyimpan pesanan. Silakan coba kembali.')
     } finally {
@@ -99,14 +164,15 @@ export default function OrderForm({ onOrderSubmitted }) {
               Form Pemesanan Pre-Order
             </h2>
             <p className="text-xs text-slate-500">
-              Isi data dan konfirmasi cepat via WhatsApp
+              Pembayaran QRIS & konfirmasi otomatis via WhatsApp
             </p>
           </div>
         </div>
 
         {error && (
-          <div className="my-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
-            ⚠️ {error}
+          <div className="my-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -161,7 +227,7 @@ export default function OrderForm({ onOrderSubmitted }) {
               required
             />
             <p className="text-[10px] text-slate-400 mt-1">
-              Untuk konfirmasi pesanan dan notifikasi saat pesanan siap diambil.
+              Penting: Notifikasi saat pesanan siap diambil akan dikirimkan ke nomor WhatsApp ini.
             </p>
           </div>
 
@@ -203,54 +269,44 @@ export default function OrderForm({ onOrderSubmitted }) {
 
             {/* Total Ringkasan */}
             <div className="flex items-center justify-between pt-2 border-t border-cheese-200/80">
-              <span className="text-xs font-medium text-crust-800">Total Pembayaran:</span>
+              <span className="text-xs font-medium text-crust-800">Total Yang Harus Dibayar:</span>
               <span className="text-base font-extrabold text-tomato-600">
                 {formatRupiah(totalPrice)}
               </span>
             </div>
           </div>
 
-          {/* 5. Pilihan Titik COD di Kampus */}
-          <div>
-            <label className="block text-xs font-bold text-crust-900 mb-1 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-tomato-500" />
-              <span>Titik Pengambilan (COD) Kampus <span className="text-rose-500">*</span></span>
-            </label>
-            <select
-              name="cod_location"
-              value={formData.cod_location}
-              onChange={handleChange}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-warmbg-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-tomato-500 focus:border-transparent transition"
-            >
-              {COD_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
+          {/* 5. Titik Pengambilan Tetap: Lapangan Politeknik STMI Jakarta */}
+          <div className="p-3.5 rounded-2xl bg-warmbg-100/80 border border-warmbg-300 space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-tomato-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">
+                  Titik Pengambilan Pesanan
+                </span>
+                <span className="text-xs md:text-sm font-extrabold text-crust-950">
+                  {DEFAULT_PICKUP_LOCATION}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* 6. Pilihan Jam COD */}
-          <div>
-            <label className="block text-xs font-bold text-crust-900 mb-1 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-tomato-500" />
-              <span>Waktu Pengambilan (Jam COD) <span className="text-rose-500">*</span></span>
-            </label>
-            <select
-              name="cod_time"
-              value={formData.cod_time}
-              onChange={handleChange}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-warmbg-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-tomato-500 focus:border-transparent transition"
-            >
-              {COD_TIMES.map((time) => (
-                <option key={time} value={time}>
-                  {time}
-                </option>
-              ))}
-            </select>
+          {/* 6. Informasi Waktu Pengambilan via WhatsApp */}
+          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
+            <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <span className="font-bold text-amber-950 block mb-0.5">
+                Waktu Pengambilan & Notifikasi:
+              </span>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Anda akan dihubungi langsung via <span className="font-semibold text-emerald-800">WhatsApp</span> ketika pesanan lasagna Anda sudah siap dan hangat untuk diambil di Lapangan STMI Jakarta.
+              </p>
+            </div>
           </div>
 
-          {/* 7. Catatan Tambahan / Preferensi Bahan */}
+          {/* 7. Catatan Tambahan (Opsional) */}
           <div>
             <label className="block text-xs font-bold text-crust-900 mb-1 flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-tomato-500" />
@@ -261,9 +317,125 @@ export default function OrderForm({ onOrderSubmitted }) {
               value={formData.notes}
               onChange={handleChange}
               rows="2"
-              placeholder="Contoh: Ekstra saus bechamel, jangan terlalu pedas, titip di sekre, dll."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-warmbg-300 text-sm focus:outline-none focus:ring-2 focus:ring-tomato-500 focus:border-transparent transition resize-none"
+              placeholder="Contoh: Ekstra saus bechamel, jangan terlalu pedas, dll."
+              className="w-full px-3.5 py-2 rounded-xl border border-warmbg-300 text-xs focus:outline-none focus:ring-2 focus:ring-tomato-500 focus:border-transparent transition resize-none"
             ></textarea>
+          </div>
+
+          {/* 8. SEKSI PEMBAYARAN QRIS & UPLOAD BUKTI TRANSFER (WAJIB) */}
+          <div className="pt-2" id="qris-section">
+            <div className="p-4 rounded-3xl bg-gradient-to-br from-warmbg-100 via-cheese-50 to-warmbg-50 border-2 border-tomato-200 space-y-3.5">
+              <div className="flex items-center gap-2 pb-2 border-b border-warmbg-300">
+                <div className="w-7 h-7 rounded-xl bg-tomato-600 text-white flex items-center justify-center">
+                  <QrCode className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-crust-950 uppercase tracking-wide">
+                    Pembayaran QRIS DANA / E-Wallet / Bank
+                  </h3>
+                  <p className="text-[10px] text-slate-500">Scan QRIS menggunakan aplikasi e-wallet / mobile banking</p>
+                </div>
+              </div>
+
+              {/* Total Bayar Prominent Tag */}
+              <div className="bg-white rounded-2xl p-3 border border-cheese-300 shadow-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block leading-none">
+                    Nominal Transfer Tepat
+                  </span>
+                  <span className="text-lg font-black text-tomato-600">
+                    {formatRupiah(totalPrice)}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold bg-tomato-100 text-tomato-800 px-2.5 py-1 rounded-full">
+                  {formData.quantity} Cup Lasagna
+                </span>
+              </div>
+
+              {/* QRIS Image Display */}
+              <div className="bg-white rounded-2xl p-3 border border-warmbg-300 text-center shadow-xs">
+                <div className="max-w-[220px] mx-auto overflow-hidden rounded-xl border border-slate-200 shadow-sm p-1 bg-white">
+                  <img
+                    src={QRIS_IMAGE_URL}
+                    alt="QRIS Pembayaran Lasagna Personal Cup"
+                    className="w-full h-auto object-contain"
+                    onError={(e) => {
+                      e.target.onerror = null
+                      e.target.src = '/WhatsApp Image 2026-11-23 at 16.48.23.jpeg'
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 mt-2 font-medium">
+                  Atas Nama: <span className="font-bold text-crust-900">Lasagna Personal Cup (DANA 0858-8916-7365)</span>
+                </p>
+              </div>
+
+              {/* Peringatan Verifikasi Manual */}
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] leading-relaxed flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">PENTING - Verifikasi Manual:</span>
+                  <span>Pembayaran QRIS dicek manual oleh penjual sebelum pesanan diproses. Jika pembayaran belum masuk / belum terverifikasi, pesanan <b>belum akan diproses</b>.</span>
+                </div>
+              </div>
+
+              {/* Input Upload Bukti Pembayaran */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-crust-950 flex items-center justify-between">
+                  <span>Unggah Bukti Transfer QRIS <span className="text-rose-500">*</span></span>
+                  <span className="text-[10px] font-semibold text-rose-600">Wajib Diisi</span>
+                </label>
+
+                {!paymentProof ? (
+                  <label className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-tomato-300 hover:border-tomato-500 bg-white hover:bg-tomato-50/40 cursor-pointer transition text-center group">
+                    <UploadCloud className="w-8 h-8 text-tomato-500 group-hover:scale-110 transition-transform mb-1.5" />
+                    <span className="text-xs font-bold text-crust-900">
+                      Klik untuk Upload Bukti Pembayaran
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">
+                      Screenshot bukti transfer (JPG, PNG - Maks. 5MB)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      required
+                    />
+                  </label>
+                ) : (
+                  <div className="p-3 rounded-2xl bg-white border border-emerald-300 shadow-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                        <img
+                          src={paymentProof}
+                          alt="Preview Bukti Bayar"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="truncate">
+                        <div className="flex items-center gap-1 text-emerald-700 text-xs font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Bukti Terupload</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 truncate max-w-[170px]">
+                          {paymentProofFileName || 'bukti-transfer.jpg'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleRemoveProof}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0"
+                      title="Hapus / Ganti Bukti"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Submit Button */}
@@ -275,11 +447,11 @@ export default function OrderForm({ onOrderSubmitted }) {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Memproses Pesanan...</span>
+                <span>Menyimpan Pesanan & Bukti Bayar...</span>
               </>
             ) : (
               <>
-                <span>Pesan Sekarang • {formatRupiah(totalPrice)}</span>
+                <span>Kirim Pesanan • {formatRupiah(totalPrice)}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

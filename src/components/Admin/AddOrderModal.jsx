@@ -9,10 +9,10 @@ export default function AddOrderModal({ onAddOrder, onClose }) {
     customer_role: 'Mahasiswa',
     whatsapp_number: '',
     quantity: 1,
-    cod_location: COD_LOCATIONS[0],
-    cod_time: COD_TIMES[1],
+    cod_location: 'Lapangan Politeknik STMI Jakarta',
+    cod_time: 'Dihubungi via WhatsApp saat siap diambil',
     notes: 'Pesanan manual / walk-in',
-    status: 'Pending',
+    status: 'Diproses',
   })
 
   const [saving, setSaving] = useState(false)
@@ -170,9 +170,9 @@ export default function AddOrderModal({ onAddOrder, onClose }) {
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-xl border border-warmbg-300 bg-white"
             >
-              <option value="Pending">Pending</option>
+              <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
               <option value="Diproses">Diproses</option>
-              <option value="Siap COD">Siap COD</option>
+              <option value="Siap Diambil">Siap Diambil</option>
               <option value="Selesai">Selesai</option>
             </select>
           </div>

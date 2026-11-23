@@ -5,14 +5,21 @@ export const PRICE_PER_CUP = 12000
 export const DEFAULT_WHATSAPP = "6285889167365"
 export const DEFAULT_ADMIN_PIN = "1234"
 
+export const DEFAULT_PICKUP_LOCATION = "Lapangan Politeknik STMI Jakarta"
+export const DEFAULT_PICKUP_TIME_INFO = "Dihubungi via WhatsApp saat siap diambil"
+
+export const PRODUCT_IMAGE_URL = "/lasagna.jpg"
+export const QRIS_IMAGE_URL = "/qris.jpg"
+
 export const COD_LOCATIONS = [
+  "Lapangan Politeknik STMI Jakarta",
   "Selasar Gedung A",
   "Kantin Kampus",
   "Lobi Utama",
-  "Area Parkir / Gerbang Utama",
 ]
 
 export const COD_TIMES = [
+  "Dihubungi via WhatsApp saat siap diambil",
   "Istirahat Pagi (09.30 - 10.00)",
   "Istirahat Siang (12.00 - 13.00)",
   "Sore Pulang Kuliah (15.30 - 16.30)",
@@ -20,9 +27,9 @@ export const COD_TIMES = [
 
 export const ORDER_STATUSES = [
   { id: "Semua", label: "Semua Pesanan", color: "bg-slate-100 text-slate-700" },
-  { id: "Pending", label: "Pending", color: "bg-amber-100 text-amber-800 border-amber-300" },
+  { id: "Menunggu Verifikasi", label: "Menunggu Verifikasi", color: "bg-amber-100 text-amber-800 border-amber-300" },
   { id: "Diproses", label: "Diproses", color: "bg-blue-100 text-blue-800 border-blue-300" },
-  { id: "Siap COD", label: "Siap COD", color: "bg-purple-100 text-purple-800 border-purple-300" },
+  { id: "Siap Diambil", label: "Siap Diambil", color: "bg-purple-100 text-purple-800 border-purple-300" },
   { id: "Selesai", label: "Selesai", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
   { id: "Dibatalkan", label: "Dibatalkan", color: "bg-rose-100 text-rose-800 border-rose-300" },
 ]
@@ -196,9 +203,10 @@ export const INITIAL_ORDERS = [
     quantity: 5,
     unit_price: 12000,
     total_price: 60000,
-    cod_location: "Kantin Kampus",
-    cod_time: "Istirahat Siang (12.00 - 13.00)",
+    cod_location: "Lapangan Politeknik STMI Jakarta",
+    cod_time: "Dihubungi via WhatsApp saat siap diambil",
     notes: "Extra saus bechamel kalau bisa ya kak, terima kasih!",
+    payment_proof: "/qris.jpg",
     status: "Diproses",
     created_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
@@ -212,10 +220,11 @@ export const INITIAL_ORDERS = [
     quantity: 6,
     unit_price: 12000,
     total_price: 72000,
-    cod_location: "Lobi Utama",
-    cod_time: "Istirahat Siang (12.00 - 13.00)",
-    notes: "Untuk rapat kecil dosen prodi di ruang rapat dosen.",
-    status: "Pending",
+    cod_location: "Lapangan Politeknik STMI Jakarta",
+    cod_time: "Dihubungi via WhatsApp saat siap diambil",
+    notes: "Untuk rapat dosen prodi di ruang rapat.",
+    payment_proof: "/qris.jpg",
+    status: "Menunggu Verifikasi",
     created_at: new Date(Date.now() - 1.5 * 3600 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 1.5 * 3600 * 1000).toISOString(),
   },
@@ -228,10 +237,11 @@ export const INITIAL_ORDERS = [
     quantity: 4,
     unit_price: 12000,
     total_price: 48000,
-    cod_location: "Selasar Gedung A",
-    cod_time: "Istirahat Pagi (09.30 - 10.00)",
-    notes: "Langsung antar ke meja BAAK kalau sudah sampai di selasar ya.",
-    status: "Siap COD",
+    cod_location: "Lapangan Politeknik STMI Jakarta",
+    cod_time: "Dihubungi via WhatsApp saat siap diambil",
+    notes: "Siap ambil di lapangan saat jam istirahat ya kak.",
+    payment_proof: "/qris.jpg",
+    status: "Siap Diambil",
     created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
   },

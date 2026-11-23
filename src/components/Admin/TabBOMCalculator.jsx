@@ -19,9 +19,9 @@ export default function TabBOMCalculator({ orders, ingredients }) {
   const [customCups, setCustomCups] = useState(20)
   const [copied, setCopied] = useState(false)
 
-  // Hitung cup dari pesanan aktif (Pending + Diproses + Siap COD)
+  // Hitung cup dari pesanan aktif (Menunggu Verifikasi + Diproses + Siap Diambil)
   const activeOrders = orders.filter((o) =>
-    ['Pending', 'Diproses', 'Siap COD'].includes(o.status)
+    ['Menunggu Verifikasi', 'Pending', 'Diproses', 'Siap COD', 'Siap Diambil'].includes(o.status)
   )
   const activeCupsCount = activeOrders.reduce(
     (sum, o) => sum + (o.quantity || 0),

@@ -61,11 +61,13 @@ export function createCustomerWhatsAppUrl(order, targetPhone = DEFAULT_WHATSAPP)
     `📱 *WhatsApp:* ${order.whatsapp_number}`,
     `🍲 *Jumlah Pesanan:* ${order.quantity} Cup Lasagna`,
     `💰 *Total Pembayaran:* ${formatRupiah(order.total_price)}`,
-    `📍 *Titik COD Kampus:* ${order.cod_location}`,
-    `⏰ *Jadwal Jam COD:* ${order.cod_time}`,
+    `💳 *Metode Pembayaran:* QRIS (Bukti transfer telah saya unggah di web)`,
+    `📍 *Titik Pengambilan:* ${order.cod_location || 'Lapangan Politeknik STMI Jakarta'}`,
+    `⏰ *Waktu:* Dihubungi via WhatsApp saat siap diambil`,
+    `📌 *Status:* Menunggu Verifikasi Penjual`,
     `📝 *Catatan Tambahan:* ${notesText}`,
     ``,
-    `Mohon dicek dan dikonfirmasi ya kak. Terima kasih! 🙏✨`
+    `Mohon dicek bukti transfernya ya kak. Terima kasih! 🙏✨`
   ].join("\n")
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`

@@ -94,16 +94,18 @@ export async function createOrder(orderInput) {
     quantity: quantity,
     unit_price: unitPrice,
     total_price: totalPrice,
-    cod_location: orderInput.cod_location,
-    cod_time: orderInput.cod_time,
+    cod_location: orderInput.cod_location || "Lapangan Politeknik STMI Jakarta",
+    cod_time: orderInput.cod_time || "Dihubungi via WhatsApp saat siap diambil",
     notes: (orderInput.notes || "").trim(),
-    status: "Pending",
+    payment_proof: orderInput.payment_proof || "",
+    status: orderInput.status || "Menunggu Verifikasi",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
   if (isSupabaseConfigured && supabase) {
     try {
+      // Coba simpan termasuk payment_proof
       const { data, error } = await supabase
         .from("orders")
         .insert([{
@@ -117,15 +119,42 @@ export async function createOrder(orderInput) {
           cod_location: newOrder.cod_location,
           cod_time: newOrder.cod_time,
           notes: newOrder.notes,
+          payment_proof: newOrder.payment_proof,
           status: newOrder.status,
         }])
         .select()
         .single()
 
       if (!error && data) {
-        // Simpan juga ke local mirror
         saveOrderToLocalStorage(data)
         return { success: true, order: data }
+      }
+
+      // Jika error (misal kolom payment_proof belum ada di tabel Supabase), coba insert tanpa kolom payment_proof
+      if (error) {
+        const { data: retryData, error: retryError } = await supabase
+          .from("orders")
+          .insert([{
+            order_number: newOrder.order_number,
+            customer_name: newOrder.customer_name,
+            customer_role: newOrder.customer_role,
+            whatsapp_number: newOrder.whatsapp_number,
+            quantity: newOrder.quantity,
+            unit_price: newOrder.unit_price,
+            total_price: newOrder.total_price,
+            cod_location: newOrder.cod_location,
+            cod_time: newOrder.cod_time,
+            notes: newOrder.notes,
+            status: newOrder.status,
+          }])
+          .select()
+          .single()
+
+        if (!retryError && retryData) {
+          const merged = { ...retryData, payment_proof: newOrder.payment_proof }
+          saveOrderToLocalStorage(merged)
+          return { success: true, order: merged }
+        }
       }
       console.warn("Supabase createOrder error, saved to localStorage only:", error)
     } catch (err) {
