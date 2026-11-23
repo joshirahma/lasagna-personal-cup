@@ -24,10 +24,17 @@ import {
 import { INITIAL_BOM_INGREDIENTS, BRAND_NAME, CAMPUS_NAME, DEFAULT_WHATSAPP } from './lib/constants'
 import { MessageCircle, Heart, Shield, Sparkles } from 'lucide-react'
 
+// Helper untuk mengecek parameter URL ?admin=true
+function checkIsAdminParam() {
+  if (typeof window === 'undefined') return false
+  const params = new URLSearchParams(window.location.search)
+  return params.get('admin') === 'true'
+}
+
 export default function App() {
-  // Navigation: 'customer' or 'admin'
+  // Navigation: 'customer' or 'admin' (Hanya 'admin' jika URL memiliki ?admin=true)
   const [currentView, setCurrentView] = useState(() => {
-    return window.location.hash === '#admin' ? 'admin' : 'customer'
+    return checkIsAdminParam() ? 'admin' : 'customer'
   })
 
   // Admin auth
@@ -48,17 +55,22 @@ export default function App() {
   const [isTrackerOpen, setIsTrackerOpen] = useState(false)
   const [isAddOrderOpen, setIsAddOrderOpen] = useState(false)
 
-  // Listen to hash changes (e.g. #admin)
+  // Pantau perubahan URL / popstate / hash
   useEffect(() => {
-    const handleHashChange = () => {
-      if (window.location.hash === '#admin') {
+    const handleUrlChange = () => {
+      if (checkIsAdminParam()) {
         setCurrentView('admin')
       } else {
         setCurrentView('customer')
       }
     }
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
+
+    window.addEventListener('popstate', handleUrlChange)
+    window.addEventListener('hashchange', handleUrlChange)
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange)
+      window.removeEventListener('hashchange', handleUrlChange)
+    }
   }, [])
 
   // Load initial data
@@ -85,10 +97,20 @@ export default function App() {
   // Navigation handlers
   const handleNavigate = (view) => {
     setCurrentView(view)
-    if (view === 'admin') {
-      window.location.hash = 'admin'
-    } else {
-      window.location.hash = ''
+    try {
+      const url = new URL(window.location.href)
+      if (view === 'admin') {
+        url.searchParams.set('admin', 'true')
+        url.hash = ''
+        window.history.pushState({}, '', url.toString())
+      } else {
+        url.searchParams.delete('admin')
+        url.hash = ''
+        const newUrl = url.pathname + (url.search ? url.search : '')
+        window.history.pushState({}, '', newUrl)
+      }
+    } catch (e) {
+      console.error(e)
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -276,13 +298,17 @@ export default function App() {
               <MessageCircle className="w-3 h-3" />
               <span>WhatsApp Penjual (0858-8916-7365)</span>
             </a>
-            <span>•</span>
-            <button
-              onClick={() => handleNavigate(currentView === 'customer' ? 'admin' : 'customer')}
-              className="text-slate-500 font-medium hover:text-tomato-600"
-            >
-              {currentView === 'customer' ? 'Login Admin' : 'Halaman Pembeli'}
-            </button>
+            {currentView === 'admin' && (
+              <>
+                <span>•</span>
+                <button
+                  onClick={() => handleNavigate('customer')}
+                  className="text-slate-500 font-medium hover:text-tomato-600"
+                >
+                  Kembali ke Menu Pembeli
+                </button>
+              </>
+            )}
           </div>
         </div>
       </footer>

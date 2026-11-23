@@ -42,17 +42,8 @@ export default function Navbar({ currentView, onNavigate, onOpenTracker }) {
             <span className="hidden sm:inline">Cek Pesanan</span>
           </button>
 
-          {/* Switch View Customer / Admin */}
-          {currentView === 'customer' ? (
-            <button
-              onClick={() => onNavigate('admin')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-crust-800 hover:bg-crust-900 shadow-sm transition-all active:scale-95"
-              title="Akses Dashboard Admin"
-            >
-              <Shield className="w-3.5 h-3.5 text-cheese-300" />
-              <span>Admin Tim</span>
-            </button>
-          ) : (
+          {/* Tombol navigasi kembali hanya muncul jika sedang di halaman Admin */}
+          {currentView === 'admin' && (
             <button
               onClick={() => onNavigate('customer')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-tomato-700 bg-tomato-50 hover:bg-tomato-100 border border-tomato-200 shadow-sm transition-all active:scale-95"

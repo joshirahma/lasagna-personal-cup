@@ -32,9 +32,11 @@ Aplikasi web full-stack *mobile-first* untuk usaha kuliner kampus **"Lasagna Per
 
 ---
 
-### 2. Halaman Admin Tim Produksi (`/admin` atau tombol "Admin Tim")
-- **Proteksi PIN Keamanan:**
-  - Layar login PIN interaktif (Default PIN: `1234` atau via env `VITE_ADMIN_PIN`).
+### 2. Halaman Admin Tim Produksi (Akses Rahasia via `?admin=true`)
+- **Akses Terproteksi & Tersembunyi:**
+  - Tombol admin disembunyikan sepenuhnya dari pembeli umum di Navbar & Footer.
+  - Halaman login Admin hanya dapat diakses dengan menambahkan parameter `?admin=true` pada URL (contoh: `https://lasagna-personal-cup.netlify.app/?admin=true`).
+  - Dilindungi keypad PIN keamanan (Default PIN: `1234` atau via env `VITE_ADMIN_PIN`).
 - **Tab 1: Rekap Pesanan & Distribusi COD:**
   - Quick status cards (Pending, Diproses, Siap COD, Selesai).
   - Filter pesanan berdasarkan status, jam COD, titik COD, dan pencarian instan.
