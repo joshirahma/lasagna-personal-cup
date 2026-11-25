@@ -27,6 +27,7 @@ import {
 } from '../../lib/constants'
 import { formatRupiah } from '../../lib/formatters'
 import { compressImage } from '../../lib/imageCompressor'
+import qrisImg from '../../assets/qris.jpg'
 
 export default function OrderForm({ onOrderSubmitted }) {
   const [formData, setFormData] = useState({
@@ -379,12 +380,12 @@ export default function OrderForm({ onOrderSubmitted }) {
               <div className="bg-white rounded-2xl p-3 border border-warmbg-300 text-center shadow-xs">
                 <div className="max-w-[220px] mx-auto overflow-hidden rounded-xl border border-slate-200 shadow-sm p-1 bg-white">
                   <img
-                    src={QRIS_IMAGE_URL}
+                    src={QRIS_IMAGE_URL || qrisImg}
                     alt="QRIS Pembayaran Lasagna Personal Cup"
                     className="w-full h-auto object-contain"
                     onError={(e) => {
                       e.target.onerror = null
-                      e.target.src = '/WhatsApp Image 2026-11-23 at 16.48.23.jpeg'
+                      e.target.src = qrisImg || '/qris.jpg'
                     }}
                   />
                 </div>

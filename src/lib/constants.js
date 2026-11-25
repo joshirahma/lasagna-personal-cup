@@ -1,3 +1,6 @@
+import lasagnaImg from '../assets/lasagna.jpg'
+import qrisImg from '../assets/qris.jpg'
+
 export const BRAND_NAME = "Lasagna Personal Cup"
 export const BRAND_TAGLINE = "Hangat, Gurih & Creamy – Porsi Personal Pas Buat Ngampus"
 export const CAMPUS_NAME = "Politeknik STMI Jakarta"
@@ -8,8 +11,8 @@ export const DEFAULT_ADMIN_PIN = "1234"
 export const DEFAULT_PICKUP_LOCATION = "Lapangan Politeknik STMI Jakarta"
 export const DEFAULT_PICKUP_TIME_INFO = "Dihubungi via WhatsApp saat siap diambil"
 
-export const PRODUCT_IMAGE_URL = "/lasagna.jpg"
-export const QRIS_IMAGE_URL = "/qris.jpg"
+export const PRODUCT_IMAGE_URL = lasagnaImg
+export const QRIS_IMAGE_URL = qrisImg
 
 export const COD_LOCATIONS = [
   "Lapangan Politeknik STMI Jakarta",
@@ -206,7 +209,7 @@ export const INITIAL_ORDERS = [
     cod_location: "Lapangan Politeknik STMI Jakarta",
     cod_time: "Dihubungi via WhatsApp saat siap diambil",
     notes: "Extra saus bechamel kalau bisa ya kak, terima kasih!",
-    payment_proof: "/qris.jpg",
+    payment_proof: qrisImg,
     status: "Diproses",
     created_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
@@ -223,7 +226,7 @@ export const INITIAL_ORDERS = [
     cod_location: "Lapangan Politeknik STMI Jakarta",
     cod_time: "Dihubungi via WhatsApp saat siap diambil",
     notes: "Untuk rapat dosen prodi di ruang rapat.",
-    payment_proof: "/qris.jpg",
+    payment_proof: qrisImg,
     status: "Menunggu Verifikasi",
     created_at: new Date(Date.now() - 1.5 * 3600 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 1.5 * 3600 * 1000).toISOString(),
@@ -240,7 +243,7 @@ export const INITIAL_ORDERS = [
     cod_location: "Lapangan Politeknik STMI Jakarta",
     cod_time: "Dihubungi via WhatsApp saat siap diambil",
     notes: "Siap ambil di lapangan saat jam istirahat ya kak.",
-    payment_proof: "/qris.jpg",
+    payment_proof: qrisImg,
     status: "Siap Diambil",
     created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
     updated_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),

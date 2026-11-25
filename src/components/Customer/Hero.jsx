@@ -2,6 +2,8 @@ import React from 'react'
 import { Sparkles, CheckCircle2, ChevronDown, Flame, Utensils } from 'lucide-react'
 import { BRAND_NAME, PRICE_PER_CUP, CAMPUS_NAME, PRODUCT_IMAGE_URL } from '../../lib/constants'
 import { formatRupiah } from '../../lib/formatters'
+import lasagnaImg from '../../assets/lasagna.jpg'
+import lasagnaWideImg from '../../assets/lasagna-wide.jpg'
 
 export default function Hero({ onOrderClick }) {
   return (
@@ -51,12 +53,12 @@ export default function Hero({ onOrderClick }) {
             {/* Foto Produk Asli */}
             <div className="relative h-56 rounded-xl overflow-hidden bg-slate-100 shadow-inner">
               <img
-                src={PRODUCT_IMAGE_URL}
+                src={PRODUCT_IMAGE_URL || lasagnaImg}
                 alt="Lasagna Personal Cup Panggang"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 onError={(e) => {
                   e.target.onerror = null
-                  e.target.src = '/lasagna-wide.jpg'
+                  e.target.src = lasagnaWideImg || '/lasagna.jpg'
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-crust-950/70 via-transparent to-black/10 pointer-events-none"></div>
