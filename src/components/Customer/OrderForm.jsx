@@ -26,6 +26,7 @@ import {
   QRIS_IMAGE_URL
 } from '../../lib/constants'
 import { formatRupiah } from '../../lib/formatters'
+import { compressImage } from '../../lib/imageCompressor'
 
 export default function OrderForm({ onOrderSubmitted }) {
   const [formData, setFormData] = useState({
@@ -39,6 +40,8 @@ export default function OrderForm({ onOrderSubmitted }) {
   // State untuk bukti transfer QRIS
   const [paymentProof, setPaymentProof] = useState('')
   const [paymentProofFileName, setPaymentProofFileName] = useState('')
+  const [compressionInfo, setCompressionInfo] = useState('')
+  const [isCompressing, setIsCompressing] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -67,65 +70,74 @@ export default function OrderForm({ onOrderSubmitted }) {
     }
   }
 
-  // Handle upload bukti bayar (convert to base64 Data URL)
-  const handleFileUpload = (e) => {
+  // Handle upload bukti bayar dengan kompresi otomatis
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     // Validasi tipe file
     if (!file.type.startsWith('image/')) {
-      setError('File bukti pembayaran harus berupa gambar (JPG/PNG/JPEG)')
+      setError('File bukti pembayaran harus berupa gambar (JPG, PNG, JPEG, WebP)')
       return
     }
 
-    // Validasi ukuran file (maksimal 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Ukuran gambar maksimal 5MB')
-      return
-    }
+    try {
+      setIsCompressing(true)
+      setError('')
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      setPaymentProof(reader.result)
+      // Kompres otomatis gambar sebelum disimpan
+      const result = await compressImage(file, 1000, 0.72)
+      setPaymentProof(result.dataUrl)
       setPaymentProofFileName(file.name)
-      if (error) setError('')
+
+      const origKb = Math.round(result.originalSize / 1024)
+      const compKb = Math.round(result.compressedSize / 1024)
+      setCompressionInfo(`${origKb} KB ➔ ${compKb} KB (Hemat ${(100 - (compKb / origKb) * 100).toFixed(0)}%)`)
+    } catch (err) {
+      console.error('Image compression error:', err)
+      setError('Gagal memproses gambar bukti bayar: ' + (err.message || 'File tidak didukung'))
+    } finally {
+      setIsCompressing(false)
     }
-    reader.onerror = () => {
-      setError('Gagal membaca file gambar. Silakan coba lagi.')
-    }
-    reader.readAsDataURL(file)
   }
 
   const handleRemoveProof = () => {
     setPaymentProof('')
     setPaymentProofFileName('')
+    setCompressionInfo('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // Validasi input
+    // 1. Validasi input nama
     if (!formData.customer_name.trim()) {
       setError('Mohon masukkan nama lengkap pemesan')
       return
     }
+
+    // 2. Validasi input kelas / peran
     if (!formData.customer_role.trim()) {
       setError('Mohon masukkan kelas atau status (cth: Mahasiswa TI-2A / Dosen / Staf)')
       return
     }
-    if (!formData.whatsapp_number.trim() || formData.whatsapp_number.replace(/\D/g, '').length < 8) {
-      setError('Mohon masukkan nomor WhatsApp yang valid (min. 8 digit)')
+
+    // 3. Validasi nomor WhatsApp
+    const cleanPhone = formData.whatsapp_number.replace(/\D/g, '')
+    if (!cleanPhone || cleanPhone.length < 8) {
+      setError('Mohon masukkan nomor WhatsApp yang valid (minimal 8 digit angka)')
       return
     }
+
+    // 4. Validasi jumlah cup
     if (formData.quantity < 1) {
       setError('Minimal pemesanan adalah 1 cup')
       return
     }
 
-    // Validasi wajib upload bukti bayar QRIS
+    // 5. Validasi wajib upload bukti bayar QRIS
     if (!paymentProof) {
       setError('Wajib mengunggah bukti transfer pembayaran QRIS sebelum menyelesaikan pesanan!')
-      // Scroll ke bagian bukti bayar
       const el = document.getElementById('qris-section')
       if (el) el.scrollIntoView({ behavior: 'smooth' })
       return
@@ -136,7 +148,11 @@ export default function OrderForm({ onOrderSubmitted }) {
       setError('')
 
       const orderPayload = {
-        ...formData,
+        customer_name: formData.customer_name.trim(),
+        customer_role: formData.customer_role.trim(),
+        whatsapp_number: formData.whatsapp_number.trim(),
+        quantity: formData.quantity,
+        notes: (formData.notes || '').trim(),
         cod_location: DEFAULT_PICKUP_LOCATION,
         cod_time: DEFAULT_PICKUP_TIME_INFO,
         payment_proof: paymentProof,
@@ -145,7 +161,10 @@ export default function OrderForm({ onOrderSubmitted }) {
 
       await onOrderSubmitted(orderPayload)
     } catch (err) {
-      setError(err.message || 'Gagal menyimpan pesanan. Silakan coba kembali.')
+      console.error('Order submission error:', err)
+      const errorMsg = err.message || 'Gagal menyimpan pesanan ke database Supabase. Periksa koneksi internet Anda.'
+      setError(errorMsg)
+      alert('⚠️ Gagal Menyimpan Pesanan:\n' + errorMsg)
     } finally {
       setLoading(false)
     }
@@ -164,15 +183,19 @@ export default function OrderForm({ onOrderSubmitted }) {
               Form Pemesanan Pre-Order
             </h2>
             <p className="text-xs text-slate-500">
-              Pembayaran QRIS & konfirmasi otomatis via WhatsApp
+              Pembayaran QRIS & tersinkronisasi langsung ke Supabase
             </p>
           </div>
         </div>
 
+        {/* Error Alert Box */}
         {error && (
-          <div className="my-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <span>{error}</span>
+          <div className="my-3 p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-semibold flex items-start gap-2.5 shadow-xs animate-shake">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-bold block text-rose-900">Perhatian:</span>
+              <span>{error}</span>
+            </div>
           </div>
         )}
 
@@ -227,7 +250,7 @@ export default function OrderForm({ onOrderSubmitted }) {
               required
             />
             <p className="text-[10px] text-slate-400 mt-1">
-              Penting: Notifikasi saat pesanan siap diambil akan dikirimkan ke nomor WhatsApp ini.
+              Notifikasi saat pesanan siap diambil akan dikirimkan ke nomor WhatsApp ini.
             </p>
           </div>
 
@@ -269,7 +292,7 @@ export default function OrderForm({ onOrderSubmitted }) {
 
             {/* Total Ringkasan */}
             <div className="flex items-center justify-between pt-2 border-t border-cheese-200/80">
-              <span className="text-xs font-medium text-crust-800">Total Yang Harus Dibayar:</span>
+              <span className="text-xs font-medium text-crust-800">Total Yang Harus Ditransfer:</span>
               <span className="text-base font-extrabold text-tomato-600">
                 {formatRupiah(totalPrice)}
               </span>
@@ -341,7 +364,7 @@ export default function OrderForm({ onOrderSubmitted }) {
               <div className="bg-white rounded-2xl p-3 border border-cheese-300 shadow-xs flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-slate-500 font-bold uppercase block leading-none">
-                    Nominal Transfer Tepat
+                    Nominal Transfer Tepat:
                   </span>
                   <span className="text-lg font-black text-tomato-600">
                     {formatRupiah(totalPrice)}
@@ -388,19 +411,29 @@ export default function OrderForm({ onOrderSubmitted }) {
 
                 {!paymentProof ? (
                   <label className="flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-tomato-300 hover:border-tomato-500 bg-white hover:bg-tomato-50/40 cursor-pointer transition text-center group">
-                    <UploadCloud className="w-8 h-8 text-tomato-500 group-hover:scale-110 transition-transform mb-1.5" />
-                    <span className="text-xs font-bold text-crust-900">
-                      Klik untuk Upload Bukti Pembayaran
-                    </span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">
-                      Screenshot bukti transfer (JPG, PNG - Maks. 5MB)
-                    </span>
+                    {isCompressing ? (
+                      <div className="py-2 flex flex-col items-center gap-1.5 text-tomato-600">
+                        <Loader2 className="w-7 h-7 animate-spin" />
+                        <span className="text-xs font-bold">Mengompres Foto Bukti Bayar...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <UploadCloud className="w-8 h-8 text-tomato-500 group-hover:scale-110 transition-transform mb-1.5" />
+                        <span className="text-xs font-bold text-crust-900">
+                          Klik untuk Upload Bukti Pembayaran
+                        </span>
+                        <span className="text-[10px] text-slate-400 mt-0.5">
+                          Screenshot bukti transfer (JPG, PNG - Otomatis Terkompres)
+                        </span>
+                      </>
+                    )}
+                    {/* CATATAN: Atribut required sengaja TIDAK ditaruh di sini agar browser tidak memblokir submit dengan error 'An invalid form control is not focusable' */}
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleFileUpload}
+                      disabled={isCompressing}
                       className="hidden"
-                      required
                     />
                   </label>
                 ) : (
@@ -416,11 +449,16 @@ export default function OrderForm({ onOrderSubmitted }) {
                       <div className="truncate">
                         <div className="flex items-center gap-1 text-emerald-700 text-xs font-bold">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Bukti Terupload</span>
+                          <span>Bukti Berhasil Diunggah</span>
                         </div>
                         <p className="text-[10px] text-slate-500 truncate max-w-[170px]">
                           {paymentProofFileName || 'bukti-transfer.jpg'}
                         </p>
+                        {compressionInfo && (
+                          <span className="inline-block text-[9px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded mt-0.5">
+                            {compressionInfo}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -441,13 +479,18 @@ export default function OrderForm({ onOrderSubmitted }) {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isCompressing}
             className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-tomato-500 via-tomato-600 to-tomato-700 text-white font-bold text-sm shadow-warm hover:shadow-warm-lg disabled:opacity-60 active:scale-98 transition-all flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Menyimpan Pesanan & Bukti Bayar...</span>
+                <span>Menyimpan Pesanan ke Supabase...</span>
+              </>
+            ) : isCompressing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Memproses Foto...</span>
               </>
             ) : (
               <>

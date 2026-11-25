@@ -26,6 +26,7 @@ initializeLocalStorage()
 
 /**
  * Generate nomor pesanan unik misal LPC-1004, LPC-1005 dst.
+ * Maksimal 15 karakter agar tidak melanggar VARCHAR(20) di Supabase.
  */
 export function generateOrderNumber(existingOrders = []) {
   const currentMax = existingOrders.reduce((max, ord) => {
@@ -37,7 +38,55 @@ export function generateOrderNumber(existingOrders = []) {
 }
 
 /**
- * Ambil semua data pesanan
+ * Normalisasi objek pesanan saat diambil dari database:
+ * - Ekstrak bukti bayar jika tersimpan di kolom payment_proof atau di dalam tag [BUKTI_BAYAR:...] di notes
+ * - Petakan status database ('Pending' -> 'Menunggu Verifikasi', 'Siap COD' -> 'Siap Diambil')
+ */
+export function normalizeOrderFromDb(order) {
+  if (!order) return order
+
+  let payment_proof = order.payment_proof || ""
+  let cleanNotes = order.notes || ""
+
+  if (cleanNotes.includes("[BUKTI_BAYAR:")) {
+    const match = cleanNotes.match(/\[BUKTI_BAYAR:(data:image\/[^\]]+)\]/)
+    if (match) {
+      if (!payment_proof) {
+        payment_proof = match[1]
+      }
+      cleanNotes = cleanNotes.replace(/\[BUKTI_BAYAR:[^\]]+\]\n?/, "").trim()
+    }
+  }
+
+  // Pemetaan status untuk tampilan UI
+  let displayStatus = order.status
+  if (order.status === "Pending") {
+    displayStatus = "Menunggu Verifikasi"
+  } else if (order.status === "Siap COD") {
+    displayStatus = "Siap Diambil"
+  }
+
+  return {
+    ...order,
+    payment_proof,
+    notes: cleanNotes,
+    status: displayStatus,
+  }
+}
+
+/**
+ * Petakan status UI ke status yang diizinkan oleh check constraint database Supabase:
+ * 'Menunggu Verifikasi' -> 'Pending'
+ * 'Siap Diambil' -> 'Siap COD'
+ */
+export function mapStatusToDb(uiStatus) {
+  if (uiStatus === "Menunggu Verifikasi") return "Pending"
+  if (uiStatus === "Siap Diambil") return "Siap COD"
+  return uiStatus
+}
+
+/**
+ * Ambil semua data pesanan dari Supabase (atau fallback localStorage jika offline)
  */
 export async function getOrders() {
   if (isSupabaseConfigured && supabase) {
@@ -48,10 +97,16 @@ export async function getOrders() {
         .order("created_at", { ascending: false })
 
       if (error) {
-        console.warn("Supabase getOrders error, falling back to localStorage:", error)
+        console.warn("Supabase getOrders warning:", error)
         return getOrdersFromLocalStorage()
       }
-      return data || []
+
+      if (data) {
+        const normalizedList = data.map(normalizeOrderFromDb)
+        // Simpan mirror ke local storage
+        localStorage.setItem(ORDERS_KEY, JSON.stringify(normalizedList))
+        return normalizedList
+      }
     } catch (err) {
       console.warn("Supabase fetch failed:", err)
       return getOrdersFromLocalStorage()
@@ -66,17 +121,18 @@ function getOrdersFromLocalStorage() {
     const raw = localStorage.getItem(ORDERS_KEY)
     if (!raw) {
       localStorage.setItem(ORDERS_KEY, JSON.stringify(INITIAL_ORDERS))
-      return INITIAL_ORDERS
+      return INITIAL_ORDERS.map(normalizeOrderFromDb)
     }
-    return JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    return parsed.map(normalizeOrderFromDb)
   } catch (err) {
     console.error("Error reading orders from localStorage:", err)
-    return INITIAL_ORDERS
+    return INITIAL_ORDERS.map(normalizeOrderFromDb)
   }
 }
 
 /**
- * Tambah pesanan baru
+ * Tambah pesanan baru langsung ke Supabase
  */
 export async function createOrder(orderInput) {
   const allCurrent = getOrdersFromLocalStorage()
@@ -84,6 +140,16 @@ export async function createOrder(orderInput) {
   const quantity = Math.max(1, parseInt(orderInput.quantity, 10) || 1)
   const unitPrice = orderInput.unit_price || PRICE_PER_CUP
   const totalPrice = quantity * unitPrice
+  const rawNotes = (orderInput.notes || "").trim()
+  const paymentProof = orderInput.payment_proof || ""
+
+  // Siapkan notes dengan tag [BUKTI_BAYAR:...] agar gambar bukti transfer
+  // tetap tersimpan 100% di Supabase meskipun kolom payment_proof belum dibuat di tabel
+  const notesWithProof = paymentProof
+    ? `[BUKTI_BAYAR:${paymentProof}]\n${rawNotes}`
+    : rawNotes
+
+  const dbStatus = mapStatusToDb(orderInput.status || "Menunggu Verifikasi")
 
   const newOrder = {
     id: "ord-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
@@ -96,17 +162,18 @@ export async function createOrder(orderInput) {
     total_price: totalPrice,
     cod_location: orderInput.cod_location || "Lapangan Politeknik STMI Jakarta",
     cod_time: orderInput.cod_time || "Dihubungi via WhatsApp saat siap diambil",
-    notes: (orderInput.notes || "").trim(),
-    payment_proof: orderInput.payment_proof || "",
+    notes: rawNotes,
+    payment_proof: paymentProof,
     status: orderInput.status || "Menunggu Verifikasi",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
+  // Jika Supabase terkonfigurasi, wajib insert ke Supabase!
   if (isSupabaseConfigured && supabase) {
     try {
-      // Coba simpan termasuk payment_proof
-      const { data, error } = await supabase
+      // 1. Coba insert dengan kolom payment_proof terlebih dahulu
+      const { data: firstTryData, error: firstTryError } = await supabase
         .from("orders")
         .insert([{
           order_number: newOrder.order_number,
@@ -118,20 +185,26 @@ export async function createOrder(orderInput) {
           total_price: newOrder.total_price,
           cod_location: newOrder.cod_location,
           cod_time: newOrder.cod_time,
-          notes: newOrder.notes,
-          payment_proof: newOrder.payment_proof,
-          status: newOrder.status,
+          notes: notesWithProof,
+          payment_proof: paymentProof,
+          status: dbStatus,
         }])
         .select()
         .single()
 
-      if (!error && data) {
-        saveOrderToLocalStorage(data)
-        return { success: true, order: data }
+      if (!firstTryError && firstTryData) {
+        const normalized = normalizeOrderFromDb({
+          ...firstTryData,
+          payment_proof: paymentProof || firstTryData.payment_proof,
+        })
+        saveOrderToLocalStorage(normalized)
+        return { success: true, order: normalized }
       }
 
-      // Jika error (misal kolom payment_proof belum ada di tabel Supabase), coba insert tanpa kolom payment_proof
-      if (error) {
+      // 2. Jika error karena kolom payment_proof belum ada di skema database Supabase (PGRST204)
+      if (firstTryError && (firstTryError.code === "PGRST204" || firstTryError.message?.includes("payment_proof"))) {
+        console.warn("Kolom payment_proof tidak ada di Supabase, menyimpan bukti bayar ke kolom notes...")
+
         const { data: retryData, error: retryError } = await supabase
           .from("orders")
           .insert([{
@@ -144,25 +217,37 @@ export async function createOrder(orderInput) {
             total_price: newOrder.total_price,
             cod_location: newOrder.cod_location,
             cod_time: newOrder.cod_time,
-            notes: newOrder.notes,
-            status: newOrder.status,
+            notes: notesWithProof,
+            status: dbStatus,
           }])
           .select()
           .single()
 
         if (!retryError && retryData) {
-          const merged = { ...retryData, payment_proof: newOrder.payment_proof }
-          saveOrderToLocalStorage(merged)
-          return { success: true, order: merged }
+          const normalized = normalizeOrderFromDb({
+            ...retryData,
+            payment_proof: paymentProof,
+          })
+          saveOrderToLocalStorage(normalized)
+          return { success: true, order: normalized }
         }
+
+        if (retryError) {
+          console.error("Supabase insert error (retry):", retryError)
+          throw new Error(`Gagal menyimpan ke Supabase: ${retryError.message || retryError.details || "Database error"}`)
+        }
+      } else if (firstTryError) {
+        console.error("Supabase insert error:", firstTryError)
+        throw new Error(`Gagal menyimpan ke Supabase: ${firstTryError.message || firstTryError.details || "Database error"}`)
       }
-      console.warn("Supabase createOrder error, saved to localStorage only:", error)
     } catch (err) {
-      console.warn("Supabase createOrder failed:", err)
+      console.error("createOrder error:", err)
+      // Throw error agar dapat ditangkap dan ditampilkan di alert/toast form
+      throw err
     }
   }
 
-  // Fallback LocalStorage
+  // Jika Supabase tidak dikonfigurasi, simpan ke localStorage
   saveOrderToLocalStorage(newOrder)
   return { success: true, order: newOrder }
 }
@@ -170,7 +255,7 @@ export async function createOrder(orderInput) {
 function saveOrderToLocalStorage(order) {
   try {
     const list = getOrdersFromLocalStorage()
-    const updated = [order, ...list]
+    const updated = [order, ...list.filter(item => item.id !== order.id && item.order_number !== order.order_number)]
     localStorage.setItem(ORDERS_KEY, JSON.stringify(updated))
   } catch (e) {
     console.error("saveOrderToLocalStorage error:", e)
@@ -181,20 +266,22 @@ function saveOrderToLocalStorage(order) {
  * Update status pesanan
  */
 export async function updateOrderStatus(orderId, newStatus) {
+  const dbStatus = mapStatusToDb(newStatus)
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
         .from("orders")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: dbStatus, updated_at: new Date().toISOString() })
         .eq("id", orderId)
         .select()
         .single()
 
       if (!error && data) {
         updateOrderInLocalStorage(orderId, { status: newStatus })
-        return { success: true, order: data }
+        return { success: true, order: normalizeOrderFromDb(data) }
       }
-      console.warn("Supabase updateOrderStatus error:", error)
+      if (error) console.warn("Supabase updateOrderStatus error:", error)
     } catch (err) {
       console.warn("Supabase updateOrderStatus failed:", err)
     }
@@ -336,7 +423,7 @@ export function resetDemoData() {
   localStorage.setItem(ORDERS_KEY, JSON.stringify(INITIAL_ORDERS))
   localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(INITIAL_BOM_INGREDIENTS))
   return {
-    orders: INITIAL_ORDERS,
+    orders: INITIAL_ORDERS.map(normalizeOrderFromDb),
     ingredients: INITIAL_BOM_INGREDIENTS,
   }
 }
